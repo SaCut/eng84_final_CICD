@@ -1,13 +1,21 @@
+# let's initialise terraform
+# Providers?
+# AWS
+
+# This code will eventually launch an EC2 instance for us
+
+
 # ----- VARIABLES -----
 locals {
   region       = "eu-west-1"
-  az_1         = "${local.region}a" # availability zone eu-west-1c
-  az_2         = "${local.region}c" # availability zone eu-west-1c
+  az_1         = "${local.region}a" # availability zone eu-west-1a
+  az_2         = "${local.region}b" # availability zone eu-west-1b
+  az_3         = "${local.region}c" # availability zone eu-west-1b
   app_template = "lt-0eb371797eb762caf" # launch template for app instances
-  app_image    = "ami-0eace738484749e4b" # app instance image
+  app_image    = "ami-0e2629010839f707e" # app instance image
   type         = "t2.micro" # defines the type of instance
   key          = "eng84devops" # defines the ssh key to be used
-  key_path     = "C:\User\Ben\.ssh\eng84devops.pem"
+  key_path     = "~/.ssh/eng84devops.pem"
 }
 
 
@@ -21,9 +29,10 @@ provider "aws" { # provider is a keyword to define the cloud provider
 
 
 # ----- VPC RESOURCES -----
+
 # block of code to create a VPC
-resource "aws_vpc" "final_vpc" {
-  cidr_block       = "100.100.0.0/16"
+resource "aws_vpc" "project_vpc" {
+  cidr_block       = "80.90.0.0/16"
   instance_tenancy = "default"
 
   tags = {
@@ -33,91 +42,112 @@ resource "aws_vpc" "final_vpc" {
 
 # ----- ROUTE TABLE -----
 # create internet gateway
-resource "aws_internet_gateway" "sav_tf_gate" {
-  vpc_id = aws_vpc.sav_tf_vpc.id
+resource "aws_internet_gateway" "project_gate" {
+  vpc_id = aws_vpc.project_vpc.id
 
   tags = {
-    Name = "eng84_sav_tf_gateway"
+    Name = "eng84_final_project_gateway"
   }
 }
 
 # create route table
-resource "aws_route_table" "sav_tf_route" {
-  vpc_id = aws_vpc.sav_tf_vpc.id
-  # subnet_id = aws_subnet.sav_public_net_a.id
+resource "aws_route_table" "project_route" {
+  vpc_id = aws_vpc.project_vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.sav_tf_gate.id
+    gateway_id = aws_internet_gateway.project_gate.id
   }
 
   tags = {
-    Name = "eng84_sav_tf_public_RT"
+    Name = "eng84_final_project_public_RT"
   }
 }
 
 # ----- CREATE SUBNETS -----
 # block of code to create a public subnet in region eu-west-1a
-resource "aws_subnet" "sav_public_net_a" {
-  vpc_id                  = aws_vpc.sav_tf_vpc.id
-  cidr_block              = "10.0.1.0/24"
+resource "aws_subnet" "project_net_a" {
+  vpc_id                  = aws_vpc.project_vpc.id
+  cidr_block              = "80.90.101.0/24"
   map_public_ip_on_launch = "true" # makes it a public subnet
   availability_zone       = local.az_1
-  # route_table = aws_route_table.sav_tf_route.id
+  # route_table = aws_route_table.project_route.id
 
   tags = {
-    Name = "eng84_sav_tf_public_net_a"
+    Name = "eng84_final_project_net_a"
+  }
+}
+
+# block of code to create a public subnet in region eu-west-1b
+resource "aws_subnet" "project_net_b" {
+  vpc_id                  = aws_vpc.project_vpc.id
+  cidr_block              = "80.90.102.0/24"
+  map_public_ip_on_launch = "true" # makes it a public subnet
+  availability_zone       = local.az_2
+  # route_table = aws_route_table.project_route.id
+
+  tags = {
+    Name = "eng84_final_project_net_b"
   }
 }
 
 # block of code to create a public subnet in region eu-west-1c
-resource "aws_subnet" "sav_public_net_b" {
-  vpc_id                  = aws_vpc.sav_tf_vpc.id
-  cidr_block              = "10.0.4.0/24"
+resource "aws_subnet" "project_net_c" {
+  vpc_id                  = aws_vpc.project_vpc.id
+  cidr_block              = "80.90.103.0/24"
   map_public_ip_on_launch = "true" # makes it a public subnet
-  availability_zone       = local.az_2
+  availability_zone       = local.az_3
+  # route_table = aws_route_table.project_route.id
 
   tags = {
-    Name = "eng84_sav_tf_public_net_b"
-  }
-}
-
-# block of code to create a private subnet
-resource "aws_subnet" "sav_private_net" {
-  vpc_id                  = aws_vpc.sav_tf_vpc.id
-  cidr_block              = "10.0.2.0/24"
-  map_public_ip_on_launch = "false" # makes it a private subnet
-
-  tags = {
-    Name = "eng84_sav_tf_private_net"
+    Name = "eng84_final_project_net_c"
   }
 }
 
 # ----- SUBNET RULES -----
 # route table association to public subnet a
-resource "aws_route_table_association" "public_a" {
-  subnet_id      = aws_subnet.sav_public_net_a.id
-  route_table_id = aws_route_table.sav_tf_route.id
+resource "aws_route_table_association" "project_route_a" {
+  subnet_id      = aws_subnet.project_net_a.id
+  route_table_id = aws_route_table.project_route.id
 }
 
 # route table association to public subnet b
-resource "aws_route_table_association" "public_b" {
-  subnet_id      = aws_subnet.sav_public_net_b.id
-  route_table_id = aws_route_table.sav_tf_route.id
+resource "aws_route_table_association" "project_route_b" {
+  subnet_id      = aws_subnet.project_net_b.id
+  route_table_id = aws_route_table.project_route.id
 }
 
-# route table association to public subnet ---- TEMP ----
-resource "aws_route_table_association" "private" {
-  subnet_id      = aws_subnet.sav_private_net.id
-  route_table_id = aws_route_table.sav_tf_route.id # associated with public route table for debug
+# route table association to public subnet c
+resource "aws_route_table_association" "project_route_c" {
+  subnet_id      = aws_subnet.project_net_c.id
+  route_table_id = aws_route_table.project_route.id
 }
 
 # ----- SECURITY GROUPS -----
 # create a public security group
-resource "aws_security_group" "sav_public_SG_1" {
-  name        = "sav_public_SG_1"
+resource "aws_security_group" "project_SG_a" {
+  name        = "project_SG_a"
   description = "allows inbound traffic"
-  vpc_id      = aws_vpc.sav_tf_vpc.id
+  vpc_id      = aws_vpc.project_vpc.id
+
+  ingress {
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
+  ingress {
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["217.44.147.236/32"] 
+  }
+  ingress {
+    from_port = 0 
+    to_port = 0
+    protocol = -1
+    cidr_blocks = ["217.155.15.136/32"] 
+  }
 
   egress {
     from_port        = 0
@@ -128,119 +158,142 @@ resource "aws_security_group" "sav_public_SG_1" {
   }
 
   tags = {
-    Name = "eng84_sav_tf_public_SG_1"
+    Name = "eng84_final_project_SG_a"
   }
 }
 
-# create security group rule "http"
-resource "aws_security_group_rule" "public_http_1" {
-  description       = "allows access from the internet"
-  type              = "ingress"
-  from_port         = 80
-  to_port           = 80
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  ipv6_cidr_blocks  = ["::/0"]
-  security_group_id = aws_security_group.sav_public_SG_1.id
-}
+# # create security group rule "http"
+# resource "aws_security_group_rule" "project_http" {
+#   description       = "allows access from the internet"
+#   type              = "ingress"
+#   from_port         = 80
+#   to_port           = 80
+#   protocol          = "tcp"
+#   cidr_blocks       = ["0.0.0.0/0"]
+#   ipv6_cidr_blocks  = ["::/0"]
+#   security_group_id = aws_security_group.project_SG_a.id
+# }
 
-# create security group rule "ssh"
-resource "aws_security_group_rule" "public_shh_1" {
-  description       = "allows access from my IP"
-  type              = "ingress"
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  cidr_blocks       = ["165.120.9.26/32"]
-  ipv6_cidr_blocks  = ["::/0"]
-  security_group_id = aws_security_group.sav_public_SG_1.id
-}
+# # create security group rule "ssh"
+# resource "aws_security_group_rule" "public_shh_a" {
+#   description       = "allows access from my IP"
+#   type              = "ingress"
+#   from_port         = 22
+#   to_port           = 22
+#   protocol          = "tcp"
+#   cidr_blocks       = ["217.44.147.236/32"]
+#   ipv6_cidr_blocks  = ["::/0"]
+#   security_group_id = aws_security_group.project_SG_a.id
+# }
 
-# create security group rule "self"
-resource "aws_security_group_rule" "public_self_1" {
-  description       = "allows access from itself"
-  type              = "ingress"
-  from_port         = "-1"
-  to_port           = "-1"
-  protocol          = "-1"
-  cidr_blocks       = ["10.0.1.0/24"]
-  ipv6_cidr_blocks  = ["::/0"]
-  security_group_id = aws_security_group.sav_public_SG_1.id
-}
-
-# create a public security group 2
-resource "aws_security_group" "sav_public_SG_2" {
-  name        = "sav_public_SG_2"
-  description = "allows inbound traffic"
-  vpc_id      = aws_vpc.sav_tf_vpc.id
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = {
-    Name = "eng84_sav_tf_public_SG_2"
-  }
-}
-
-# create security group rule "http"
-resource "aws_security_group_rule" "public_http_2" {
-  description       = "allows access from the internet"
-  type              = "ingress"
-  from_port         = 80
-  to_port           = 80
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  ipv6_cidr_blocks  = ["::/0"]
-  security_group_id = aws_security_group.sav_public_SG_2.id
-}
-
-# create security group rule "ssh"
-resource "aws_security_group_rule" "public_shh_2" {
-  description       = "allows access from my IP"
-  type              = "ingress"
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  cidr_blocks       = ["165.120.9.26/32"]
-  ipv6_cidr_blocks  = ["::/0"]
-  security_group_id = aws_security_group.sav_public_SG_2.id
-}
-
-# create security group rule "self"
-resource "aws_security_group_rule" "public_self_2" {
-  description       = "allows access from itself"
-  type              = "ingress"
-  from_port         = "-1"
-  to_port           = "-1"
-  protocol          = "-1"
-  cidr_blocks       = ["10.0.1.0/24"]
-  ipv6_cidr_blocks  = ["::/0"]
-  security_group_id = aws_security_group.sav_public_SG_2.id
-}
+# # create security group rule "ssh"
+# resource "aws_security_group_rule" "public_shh_b" {
+#   description       = "allows access from Jenkins (Ben) IP"
+#   type              = "ingress"
+#   from_port         = 22
+#   to_port           = 22
+#   protocol          = "tcp"
+#   cidr_blocks       = ["217.155.15.136/32"]
+#   ipv6_cidr_blocks  = ["::/0"]
+#   security_group_id = aws_security_group.project_SG_a.id
+# }
 
 
-# launching db EC2 instance from AMI
-resource "aws_instance" "sav_tf_db" {
-  ami = local.db_image # define the source image
 
+# ----- AUTO SCALER -----
+# create launch configuration
+resource "aws_launch_template" "project_launch_app" {
+  name   = "eng84_final_project_tpl"
+  image_id      = local.app_image
+  ebs_optimized = false
   instance_type = local.type
+  key_name      = local.key
 
-  key_name = local.key
-
-  private_ip = "10.0.2.100" # set the private ip
-
-  associate_public_ip_address = true # for ssh
-
-  subnet_id = aws_subnet.sav_private_net.id
-
-  vpc_security_group_ids = [aws_security_group.sav_private_SG.id]
+  network_interfaces {
+    associate_public_ip_address = true
+    security_groups = [aws_security_group.project_SG_a.id]
+  }
 
   tags = {
-      Name = "eng84_sav_tf_db"
+    Name = "eng84_final_project_launch_template"
   }
 }
+
+# Auto Scaling Group
+resource "aws_autoscaling_group" "project_auto_scale" {
+  name                 = "eng84_final_project_auto_scale"
+  vpc_zone_identifier  = [
+    aws_subnet.project_net_a.id,
+    aws_subnet.project_net_b.id,
+    aws_subnet.project_net_c.id
+  ]
+  desired_capacity     = 2
+  max_size             = 5
+  min_size             = 1
+  health_check_type    = "EC2"
+  target_group_arns    = ["${aws_lb_target_group.project_target_a.arn}"]
+  depends_on           = [aws_launch_template.project_launch_app, aws_lb_listener.project_listen_a]
+
+  launch_template {
+    id      = aws_launch_template.project_launch_app.id
+    version = "$Latest"
+  }
+
+  lifecycle {
+    ignore_changes = [target_group_arns]
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "eng84_final_project_flask_app"
+    propagate_at_launch = true
+  }
+}
+
+
+
+# ----- LOAD BALANCER -----
+# create target group 1
+resource "aws_lb_target_group" "project_target_a" {
+  name        = "eng84-final-project-TG-1"
+  port        = 80
+  protocol    = "HTTP"
+  target_type = "instance"
+  vpc_id      = aws_vpc.project_vpc.id
+
+  tags = {
+    Name = "eng84_final_project_TG_1"
+  }
+}
+
+# create listener
+resource "aws_lb_listener" "project_listen_a" {
+  load_balancer_arn = aws_lb.project_lb.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.project_target_a.arn
+  }
+}
+
+# create load balancer
+resource "aws_lb" "project_lb" {
+  name               = "eng84-final-project-load"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.project_SG_a.id,]
+  subnets            = [
+    aws_subnet.project_net_a.id,
+    aws_subnet.project_net_b.id,
+    aws_subnet.project_net_c.id
+  ]
+
+  enable_deletion_protection = false
+
+  tags = {
+    Name = "eng84_final_project_load_balancer"
+  }
+}
+

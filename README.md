@@ -74,9 +74,36 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY  ./ /usr/src/app
 
-RUN mkdir /root/Downloads
-RUN touch /root/DownloadsItJobsWatchTop30.csv
+RUN mkdir /root/DownloadsS
 
 CMD [ "python",  "-m", "pytest", "tests/", "-v"]
 ```
 
+
+### Email notifications using a google script  
+
+
+```
+function doGet(e) { doPost(e) }
+
+function doPost(request){
+  // get the sting value of the POST data
+  var postJSON = request.postData.getDataAsString();
+  var payload = JSON.parse(postJSON);
+  var tag = payload.push_data.tag;
+  var reponame = payload.repository.repo_name;
+  var dockerimagename = payload.repository.name;
+
+  if(typeof request !== 'undefined')
+
+  MailApp.sendEmail({
+     to: "example@email.com",
+     subject: "New Docker Image Uploaded to the repository "+reponame,
+    htmlBody: 
+              "A new image was uploaded to "+reponame+"<br>"+
+              "<strong>Docker Name: " + dockerimagename+"<br>"+           
+              "Docker Image version:" +tag+"<br></strong>"
+               
+    });
+}
+```
